@@ -160,6 +160,165 @@
             opacity: 0.8;
         }
 
+        /* Light Mode Overrides */
+        body.light-mode {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+        }
+
+        body.light-mode .slide {
+            background-color: #ffffff !important;
+            background-image: radial-gradient(#ccc 1px, transparent 1px) !important;
+        }
+
+        body.light-mode .text-white {
+            color: #000000 !important;
+        }
+
+        body.light-mode .bg-black {
+            background-color: #ffffff !important;
+        }
+
+        body.light-mode .border-white {
+            border-color: #000000 !important;
+        }
+
+        body.light-mode .text-gray-400 {
+            color: #444444 !important;
+        }
+
+        body.light-mode .bg-white\/5 {
+            background-color: rgba(0, 0, 0, 0.05) !important;
+        }
+
+        body.light-mode .shadow-hard {
+            box-shadow: 4px 4px 0px 0px #000000 !important;
+        }
+
+        /* Specific Light Element Fixes */
+        body.light-mode .crt-overlay {
+            opacity: 0.1 !important;
+            filter: invert(1);
+        }
+
+        body.light-mode #matrix-canvas {
+            opacity: 0.1;
+            /* Invert removed */
+        }
+
+        body.light-mode #manual-timer {
+            color: #0000aa !important;
+        }
+
+        body.light-mode .code-line.active {
+            background-color: rgba(0, 0, 0, 0.1);
+            border-left-color: #000000;
+            color: #000000;
+        }
+
+        body.light-mode .bg-gray-900 {
+            background-color: #eeeeee !important;
+        }
+
+        /* Light Mode Text Overrides */
+        body.light-mode .text-neonGreen {
+            color: #006400 !important;
+        }
+
+        body.light-mode .text-neonPink {
+            color: #800080 !important;
+        }
+
+        body.light-mode .text-neonCyan {
+            color: #008080 !important;
+        }
+
+        body.light-mode .text-neonYellow {
+            color: #b8860b !important;
+        }
+
+        body.light-mode .border-neonGreen {
+            border-color: #006400 !important;
+        }
+
+        body.light-mode .border-neonCyan {
+            border-color: #008080 !important;
+        }
+
+        /* Slide 2: Code Block Polish */
+        body.light-mode .bg-\[\#0a0a0a\] {
+            background-color: #f5f5f5 !important;
+        }
+
+        body.light-mode .text-blue-400 {
+            color: #0000aa !important;
+        }
+
+        body.light-mode .text-yellow-300 {
+            color: #aa5500 !important;
+        }
+
+        /* Dark Gold */
+        body.light-mode .text-purple-400 {
+            color: #800080 !important;
+        }
+
+        body.light-mode .text-red-400 {
+            color: #cc0000 !important;
+        }
+
+        body.light-mode .text-white {
+            color: #000000 !important;
+        }
+
+        body.light-mode .text-gray-500 {
+            color: #666666 !important;
+        }
+
+        body.light-mode .text-gray-600 {
+            color: #444444 !important;
+        }
+
+        /* Slide 6: Stack & Summary Polish */
+        body.light-mode .bg-black {
+            background-color: #ffffff !important;
+        }
+
+        /* Fix for specific black backgrounds in cards */
+        body.light-mode .slide#slide-6 .bg-black {
+            background-color: #f9f9f9 !important;
+            border-color: #000000 !important;
+            box-shadow: 4px 4px 0px 0px #cccccc !important;
+        }
+
+        /* Fix Quote Box */
+        body.light-mode .border-neonYellow {
+            border-color: #b8860b !important;
+        }
+
+        /* Fix 'REVOLUTION' Highlight (Invert logic for light mode) */
+        body.light-mode .bg-white.text-black {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+
+        /* Fix Gray Borders/Backgrounds */
+        body.light-mode .border-gray-800 {
+            border-color: #e5e5e5 !important;
+        }
+
+        body.light-mode .border-gray-700 {
+            border-color: #d4d4d4 !important;
+        }
+
+        body.light-mode .bg-gray-900 {
+            background-color: #f3f4f6 !important;
+        }
+
+        /* Lighter gray for containers */
+
+        /* Removed invert filters for canvases to handle colors via JS */
+
         /* PDF Export Mode Styles */
         body.pdf-mode {
             overflow: visible !important;
@@ -194,6 +353,10 @@
 
     <!-- Navigation & Export Controls -->
     <div id="controls" class="fixed bottom-6 right-6 z-50 flex space-x-4">
+        <button onclick="toggleTheme()"
+            class="bg-neonYellow border-2 border-white text-black px-4 py-2 hover:bg-white hover:shadow-hard transition-all duration-0 font-bold uppercase text-sm">
+            [ LIGHT/DARK ]
+        </button>
         <button onclick="prevSlide()"
             class="bg-black border-2 border-white text-white px-4 py-2 hover:bg-white hover:text-black hover:shadow-hard-green transition-all duration-0 font-bold uppercase text-sm">
             &lt; PREV
@@ -626,10 +789,12 @@
         canvas.height = window.innerHeight;
         const columns = canvas.width / 16;
         const rainDrops = Array(Math.ceil(columns)).fill(1);
-        const drawMatrix = () => { /* ... same as previous ... */
-            ctx.fillStyle = 'rgba(5, 5, 5, 0.05)';
+        const drawMatrix = () => {
+            const isLight = document.body.classList.contains('light-mode');
+            ctx.fillStyle = isLight ? 'rgba(255, 255, 255, 0.05)' : 'rgba(5, 5, 5, 0.05)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#114411';
+            ctx.fillStyle = isLight ? '#004400' : '#114411'; // Darker green for light mode
+
             ctx.font = '16px monospace';
             for (let i = 0; i < rainDrops.length; i++) {
                 const text = String.fromCharCode(0x30A0 + Math.random() * 96);
@@ -666,7 +831,12 @@
                 [1, 2], [2, 3], [3, 4], [4, 1]  // Ring
             ];
 
-            const colors = ['#00ff00', '#ff00ff', '#00ffff']; // G, P, C
+            const isLight = document.body.classList.contains('light-mode');
+            const colors = isLight ? ['#006400', '#800080', '#008080'] : ['#00ff00', '#ff00ff', '#00ffff']; // G, P, C
+            const nodeFill = isLight ? '#ffffff' : '#111111';
+            const nodeStroke = isLight ? '#000000' : '#555555';
+            const nodeText = isLight ? '#000000' : '#ffffff';
+            const edgeStroke = isLight ? '#000000' : '#333333';
 
             let stack = []; // For backtracking visualization (simplistic sequence here)
             let step = 0;
@@ -719,7 +889,7 @@
 
                 // Edges
                 cx.lineWidth = 2;
-                cx.strokeStyle = '#333';
+                cx.strokeStyle = edgeStroke;
                 edges.forEach(e => {
                     const n1 = nodes[e[0]], n2 = nodes[e[1]];
                     cx.beginPath();
@@ -732,16 +902,16 @@
                 nodes.forEach(n => {
                     cx.beginPath();
                     cx.arc(n.x, n.y, 25, 0, Math.PI * 2);
-                    cx.fillStyle = n.val !== null ? colors[n.val] : '#111';
+                    cx.fillStyle = n.val !== null ? colors[n.val] : nodeFill;
                     cx.fill();
-                    cx.strokeStyle = n.val !== null ? '#fff' : '#555';
+                    cx.strokeStyle = n.val !== null ? (isLight ? '#000' : '#fff') : nodeStroke;
                     cx.lineWidth = 2;
                     cx.stroke();
 
                     // Label
                     cx.textAlign = 'center';
                     cx.textBaseline = 'middle';
-                    cx.fillStyle = n.val !== null ? '#000' : '#fff';
+                    cx.fillStyle = n.val !== null ? (isLight ? '#fff' : '#000') : nodeText;
                     cx.font = 'bold 12px monospace';
                     cx.fillText(n.name, n.x, n.y);
 
@@ -806,7 +976,7 @@
                 step++;
             };
 
-            exactAlgoInterval = setInterval(executeStep, 1500); // Slow enough to read
+            exactAlgoInterval = setInterval(executeStep, 800); // Faster speed
             draw();
         }
 
@@ -873,7 +1043,8 @@
             resetDemo();
             const log = document.getElementById('execution-log');
             const badge = document.getElementById('time-badge');
-            const colors = ['#00ff00', '#ff00ff', '#00ffff'];
+            const isLight = document.body.classList.contains('light-mode');
+            const colors = isLight ? ['#006400', '#800080', '#008080'] : ['#00ff00', '#ff00ff', '#00ffff'];
             const names = ['CSE', 'ECE', 'ME'];
             const cols = 5;
             const grid = Array(25).fill(-1);
@@ -914,9 +1085,9 @@
                     grid[i] = allocated;
                     cell.style.backgroundColor = colors[allocated];
                     cell.innerText = names[allocated];
-                    cell.style.color = 'black';
+                    cell.style.color = isLight ? 'white' : 'black';
                     cell.classList.remove('thinking');
-                    if (visualize) cell.style.borderColor = 'white';
+                    if (visualize) cell.style.borderColor = document.body.classList.contains('light-mode') ? 'black' : 'white';
                 } else {
                     cell.style.opacity = 0.5;
                 }
@@ -984,8 +1155,15 @@
             });
         }
 
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            // If on slide 2, restart to apply new colors
+            if (currentSlide === 1) startExactAlgoDemo();
+        }
+
         showSlide(0);
     </script>
 </body>
 
 </html>
+```

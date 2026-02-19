@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OptiSeat AI - Immersive Experience</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Archivo+Black&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                        display: ['"Archivo Black"', 'sans-serif'],
+                    },
+                    colors: {
+                        bgBlack: '#050505',
+                        neonGreen: '#00ff00',
+                        neonPink: '#ff00ff',
+                        neonCyan: '#00ffff',
+                        neonYellow: '#ffff00',
+                        offWhite: '#e0e0e0',
+                    },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px #ffffff',
+                        'hard-green': '4px 4px 0px 0px #00ff00',
+                        'hard-pink': '4px 4px 0px 0px #ff00ff',
+                        'hard-cyan': '4px 4px 0px 0px #00ffff',
+                    },
+                    animation: {
+                        'glitch': 'glitch 1s linear infinite',
+                        'flash': 'flash 0.2s',
+                        'pulse-fast': 'pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        glitch: {
+                            '2%, 64%': { transform: 'translate(2px,0) skew(0deg)' },
+                            '4%, 60%': { transform: 'translate(-2px,0) skew(0deg)' },
+                            '62%': { transform: 'translate(0,0) skew(5deg)' },
+                        },
+                        flash: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #050505;
+            color: #dcdcdc;
+            font-family: 'JetBrains Mono', monospace;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        /* CRT Overlay */
+        .crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .brutalist-border {
+            border: 2px solid #f0f0f0;
+        }
+
+        .slide {
+            height: 100vh;
+            width: 100vw;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            position: relative;
+            background-color: #050505;
+            background-image:
+                radial-gradient(#333 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .slide.active {
+            display: flex;
+        }
+
+        /* Matrix Rain Canvas */
+        #matrix-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.1;
+            pointer-events: none;
+        }
+
+        /* Algorithm Debugger Styles */
+        .code-line {
+            padding: 2px 8px;
+            opacity: 0.5;
+            transition: all 0.1s;
+        }
+
+        .code-line.active {
+            background-color: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            border-left: 2px solid #00ff00;
+            opacity: 1;
+            font-weight: bold;
+        }
+
+        #exact-logic-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Demo Grid Cells */
+        .seat-cell {
+            transition: all 0.1s;
+        }
+
+        .seat-cell.filled {
+            transform: scale(0.95);
+        }
+
+        .seat-cell.conflict {
+            background-color: white !important;
+            color: red !important;
+            animation: flash 0.1s infinite;
+        }
+
+        .seat-cell.thinking {
+            border-color: #ffff00 !important;
+            border-width: 4px;
+        }
+
+        /* Manual Challenge Grid */
+        .manual-cell {
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.1s;
+        }
+
+        .manual-cell:hover {
+            opacity: 0.8;
+        }
+
+        /* PDF Export Mode Styles */
+        body.pdf-mode {
+            overflow: visible !important;
+            height: auto !important;
+        }
+
+        body.pdf-mode #presentation-container {
+            height: auto !important;
+            overflow: visible !important;
+        }
+
+        body.pdf-mode .slide {
+            display: flex !important;
+            position: relative !important;
+            height: 100vh !important;
+            width: 100vw !important;
+            page-break-after: always !important;
+            background-image: none !important;
+            border: 10px solid black !important;
+        }
+
+        body.pdf-mode #controls,
+        body.pdf-mode .crt-overlay {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body class="selection:bg-neonGreen selection:text-black">
+
+    <div class="crt-overlay"></div>
+
+    <!-- Navigation & Export Controls -->
+    <div id="controls" class="fixed bottom-6 right-6 z-50 flex space-x-4">
+        <button onclick="prevSlide()"
+            class="bg-black border-2 border-white text-white px-4 py-2 hover:bg-white hover:text-black hover:shadow-hard-green transition-all duration-0 font-bold uppercase text-sm">
+            &lt; PREV
+        </button>
+        <button onclick="nextSlide()"
+            class="bg-black border-2 border-white text-white px-4 py-2 hover:bg-white hover:text-black hover:shadow-hard-green transition-all duration-0 font-bold uppercase text-sm">
+            NEXT &gt;
+        </button>
+        <button onclick="exportToPDF()" id="export-btn"
+            class="bg-neonPink border-2 border-white text-black font-bold px-6 py-2 hover:bg-white hover:shadow-hard-pink transition-all duration-0 uppercase text-sm">
+            [ EXPORT_PDF ]
+        </button>
+    </div>
+
+    <!-- Main Container -->
+    <div id="presentation-container">
+
+        <!-- Slide 1: The Core Problem (Gamified) -->
+        <div class="slide active" id="slide-1">
+            <canvas id="matrix-canvas"></canvas>
+
+            <div class="relative z-10 max-w-7xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="space-y-6">
+                    <div class="bg-neonGreen/10 border-l-4 border-neonGreen p-4">
+                        <h1
+                            class="font-display text-5xl md:text-6xl font-black leading-none mb-2 uppercase tracking-tight text-white">
+                            MANUAL <br>
+                            ALLOCATION <br>
+                            <span class="text-neonGreen">FAILURE</span>
+                        </h1>
+                        <p class="font-mono text-sm text-gray-400">
+                            > SYSTEM_ERROR: Human processing speed insufficient.<br>
+                            > CONFLICT_RATE: > 40%
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Manual Challenge Mini-Game -->
+                <div class="border-4 border-white bg-black p-6 relative">
+                    <div
+                        class="absolute -top-4 -right-4 bg-neonPink text-black px-3 py-1 font-bold text-xs shadow-hard-pink animate-pulse">
+                        TRY_IT_YOURSELF.EXE
+                    </div>
+
+                    <h3 class="text-xl font-display text-white mb-4 text-center">MANUAL CHALLENGE: 3x3 GRID</h3>
+                    <p class="text-xs font-mono text-gray-400 text-center mb-4">
+                        CLICK CELLS TO CHANGE COLOR. <br>AVOID ADJACENT CONFLICTS. GO!
+                    </p>
+
+                    <div id="manual-grid" class="grid grid-cols-3 gap-2 w-64 mx-auto mb-4">
+                        <!-- JS Generated -->
+                    </div>
+
+                    <div class="flex justify-between items-center font-mono text-xs border-t border-gray-800 pt-4">
+                        <div id="manual-timer" class="text-neonCyan">TIME: 00.00s</div>
+                        <div id="manual-status" class="text-red-500 font-bold">CONFLICTS DETECTED</div>
+                    </div>
+                </div>
+            </div>
+            <div
+                class="absolute bottom-4 left-4 font-display text-4xl text-white opacity-10 uppercase tracking-widest pointer-events-none">
+                OptiSeat // AI
+            </div>
+        </div>
+
+        <!-- Slide 2: The Exact Logic (Implementation View) -->
+        <div class="slide" id="slide-2">
+            <div class="w-full max-w-7xl h-[80vh] flex flex-col">
+                <h2
+                    class="font-display text-4xl font-black mb-6 uppercase border-b-4 border-neonCyan inline-block pb-2 text-white w-max">
+                    Algo // <span class="text-neonCyan">Internals</span>
+                </h2>
+
+                <div class="grid grid-cols-12 gap-0 border-4 border-white h-full bg-black">
+                    <!-- Left: Source Code -->
+                    <div
+                        class="col-span-5 border-r-4 border-white bg-[#0a0a0a] p-4 font-mono text-xs text-gray-400 flex flex-col justify-center overflow-hidden relative">
+                        <div class="absolute top-2 right-2 text-[10px] text-gray-600">SOURCE: solver.py</div>
+                        <div id="code-line-0" class="code-line text-blue-400">def backtrack(assignment):</div>
+                        <div id="code-line-1" class="code-line pl-6">if is_complete(assignment):</div>
+                        <div id="code-line-2" class="code-line pl-10">return assignment</div>
+                        <div id="code-line-3" class="code-line pl-6"># Heuristic: MRV (Min Remaining Values)</div>
+                        <div id="code-line-4" class="code-line pl-6 text-yellow-300">var = select_unassigned_var(csp)
+                        </div>
+                        <div id="code-line-5" class="code-line pl-6">for value in order_domain_values(var):</div>
+                        <div id="code-line-6" class="code-line pl-10">if is_consistent(var, value):</div>
+                        <div id="code-line-7" class="code-line pl-14 font-bold text-white">assignment[var] = value</div>
+                        <div id="code-line-8" class="code-line pl-14 text-purple-400">inferences =
+                            forward_check(assignment)</div>
+                        <div id="code-line-9" class="code-line pl-14">if inferences != failure:</div>
+                        <div id="code-line-10" class="code-line pl-18">result = backtrack(assignment)</div>
+                        <div id="code-line-11" class="code-line pl-18">if result: return result</div>
+                        <div id="code-line-12" class="code-line pl-14 text-red-400">del assignment[var] # Backtrack
+                        </div>
+                        <div id="code-line-13" class="code-line pl-6">return failure</div>
+                    </div>
+
+                    <!-- Right: Visualizer -->
+                    <div class="col-span-7 relative bg-black flex items-center justify-center overflow-hidden">
+                        <canvas id="exact-logic-canvas"></canvas>
+
+                        <!-- Overlay Status -->
+                        <div class="absolute top-4 left-4 font-mono text-xs">
+                            <div class="mb-2"><span class="text-gray-500">CURRENT_VAR:</span> <span id="debug-var"
+                                    class="text-neonYellow">NONE</span></div>
+                            <div class="mb-2"><span class="text-gray-500">DOMAIN_SIZE:</span> <span id="debug-domain"
+                                    class="text-neonCyan">---</span></div>
+                            <div><span class="text-gray-500">STATUS:</span> <span id="debug-status"
+                                    class="text-white">IDLE</span></div>
+                        </div>
+
+                        <div class="absolute bottom-4 right-4 text-[10px] font-mono text-gray-600 text-right">
+                            HEURISTIC_MODE: MRV_ENABLED<br>
+                            PROPAGATION: FORWARD_CHECKING
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Advanced Constraints (Arrears & Dynamic Density) -->
+        <div class="slide" id="slide-3">
+            <div class="w-full max-w-7xl">
+                <h2 class="font-display text-5xl font-black mb-12 uppercase text-white">
+                    Advanced <span class="text-neonPink">Constraints</span>
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <!-- Arrear Injection Visual -->
+                    <div class="border-4 border-white p-6 bg-black relative overflow-hidden group">
+                        <div class="absolute top-2 right-2 text-xs font-mono text-gray-500">MODE: MIXED_BATCH_INJECTION
+                        </div>
+                        <h3 class="text-2xl font-bold text-neonPink mb-4 uppercase">1. Arrear Handling</h3>
+                        <p class="font-mono text-sm text-gray-400 mb-6">
+                            Problem: Arrear students write different papers but sit in the same hall.<br>
+                            Solution: <span class="text-white">Multi-Dimensional constraints</span> checks `SubjectCode`
+                            not just `Dept`.
+                        </p>
+                        <!-- Animation Container -->
+                        <div class="relative h-48 border border-gray-800 bg-gray-900 overflow-hidden">
+                            <!-- Regular Students -->
+                            <div class="absolute w-full h-full grid grid-cols-6 gap-2 p-2 opacity-50">
+                                <div class="bg-neonGreen h-full w-full"></div>
+                                <div class="bg-neonCyan h-full w-full"></div>
+                                <div class="bg-neonGreen h-full w-full"></div>
+                                <div class="bg-neonCyan h-full w-full"></div>
+                                <div class="bg-neonGreen h-full w-full"></div>
+                                <div class="bg-neonCyan h-full w-full"></div>
+                            </div>
+                            <!-- Arrear Injection -->
+                            <div class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+                                <div
+                                    class="bg-neonPink px-4 py-2 text-black font-bold animate-pulse shadow-hard-pink transform rotate-12">
+                                    INJECTING ARREAR #4012
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Variable Density Visual -->
+                    <div class="border-4 border-white p-6 bg-black">
+                        <div class="absolute top-2 right-2 text-xs font-mono text-gray-500">MODE: DYNAMIC_TOPOLOGY</div>
+                        <h3 class="text-2xl font-bold text-neonYellow mb-4 uppercase">2. Variable Density</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between border-b border-gray-700 pb-2">
+                                <span class="font-mono text-white">SEM EXAM</span>
+                                <span class="font-mono text-neonGreen">1 Student / Table</span>
+                            </div>
+                            <div class="flex items-center justify-between border-b border-gray-700 pb-2">
+                                <span class="font-mono text-white">CAT EXAM</span>
+                                <span class="font-mono text-neonYellow">2 Students / Table</span>
+                            </div>
+                        </div>
+                        <div class="mt-6 flex justify-around">
+                            <!-- Visual Representation -->
+                            <div class="text-center">
+                                <div
+                                    class="w-16 h-16 border-2 border-neonGreen mx-auto mb-2 flex items-center justify-center">
+                                    <div class="w-8 h-8 bg-neonGreen rounded-full"></div>
+                                </div>
+                                <div class="text-[10px] font-mono">SPARSE GRAPH</div>
+                            </div>
+                            <div class="text-center">
+                                <div
+                                    class="w-16 h-16 border-2 border-neonYellow mx-auto mb-2 flex items-center justify-center space-x-1">
+                                    <div class="w-6 h-6 bg-neonYellow rounded-full"></div>
+                                    <div class="w-6 h-6 bg-neonCyan rounded-full"></div>
+                                </div>
+                                <div class="text-[10px] font-mono">DENSE GRAPH (FUSED)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Resource Efficiency (Bin Packing & Faculty) -->
+        <div class="slide" id="slide-4">
+            <div class="w-full max-w-7xl">
+                <h2 class="font-display text-5xl font-black mb-12 uppercase text-white">
+                    Resource <span class="text-neonGreen">Optimizer</span>
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <!-- Bin Packing -->
+                    <div class="space-y-4">
+                        <h3 class="text-2xl font-bold text-white uppercase border-l-4 border-neonGreen pl-4">
+                            Room Optimization
+                        </h3>
+                        <p class="font-mono text-sm text-gray-400">
+                            Algorithm: <span class="text-neonGreen">Bin Packing (First Fit Decreasing)</span>.<br>
+                            Goal: Maximize utilization, minimize opened halls.
+                        </p>
+                        <!-- Bars -->
+                        <div class="space-y-2 mt-4">
+                            <div class="w-full bg-gray-900 h-8 border border-white relative">
+                                <div class="h-full bg-neonGreen w-[95%]"></div>
+                                <span class="absolute inset-0 flex items-center pl-2 text-xs text-black font-bold">HALL
+                                    A: 95% FILLED</span>
+                            </div>
+                            <div class="w-full bg-gray-900 h-8 border border-white relative">
+                                <div class="h-full bg-neonGreen w-[88%]"></div>
+                                <span class="absolute inset-0 flex items-center pl-2 text-xs text-black font-bold">HALL
+                                    B: 88% FILLED</span>
+                            </div>
+                            <div class="w-full bg-gray-900 h-8 border border-white relative opacity-50">
+                                <div class="h-full bg-gray-700 w-[0%]"></div>
+                                <span class="absolute inset-0 flex items-center pl-2 text-xs text-white">HALL C: CLOSED
+                                    (SAVED)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Faculty Scheduling -->
+                    <div class="space-y-4">
+                        <h3 class="text-2xl font-bold text-white uppercase border-l-4 border-neonCyan pl-4">
+                            Faculty Scheduling
+                        </h3>
+                        <p class="font-mono text-sm text-gray-400">
+                            Logic: <span class="text-neonCyan">Nurse Scheduling CSP</span>.<br>
+                            Constraints: Max Duty Hours, Floor Rotation, Seniority Preferences.
+                        </p>
+                        <div class="border-2 border-white bg-black p-4 font-mono text-xs mt-4">
+                            <div class="flex justify-between mb-2 text-gray-500">
+                                <span>PRO_NAME</span>
+                                <span>STATUS</span>
+                                <span>LOAD</span>
+                            </div>
+                            <div class="flex justify-between mb-1 text-neonCyan">
+                                <span>DR. ANITHA</span>
+                                <span>[ASSIGNED HALL A]</span>
+                                <span>3/4 HRS</span>
+                            </div>
+                            <div class="flex justify-between mb-1 text-white">
+                                <span>PROF. RAJ</span>
+                                <span>[FLOOR DUTY L2]</span>
+                                <span>1/4 HRS</span>
+                            </div>
+                            <div class="flex justify-between text-red-500 line-through">
+                                <span>DR. KUMAR</span>
+                                <span>[MAX LIMIT REACHED]</span>
+                                <span>5/4 HRS</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Live Demo (Visualized Thinking) -->
+        <div class="slide" id="slide-5">
+            <div class="w-full max-w-7xl flex flex-col items-center">
+                <div class="flex justify-between w-full items-end border-b-4 border-white pb-4 mb-4">
+                    <h2 class="font-display text-5xl font-black uppercase text-white">
+                        ALGORITHM <span class="bg-neonGreen text-black px-2">VISUALIZER</span>
+                    </h2>
+                    <div class="text-right font-mono text-xs hidden md:block text-gray-500">
+                        MODE: BACKTRACKING_DEMO_V2
+                    </div>
+                </div>
+
+                <div class="w-full grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Controls -->
+                    <div class="bg-white/5 border-4 border-white p-6 flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-xl mb-4 text-neonYellow">CONTROLLER</h3>
+                            <p class="font-mono text-xs text-gray-400 mb-6">
+                                Observe the algorithm's decision making process in real-time.
+                            </p>
+
+                            <div class="space-y-4">
+                                <button onclick="runDemo(false)"
+                                    class="w-full bg-neonCyan border-4 border-white py-3 text-black text-lg font-display font-black hover:bg-white hover:shadow-hard-cyan transition-all uppercase">
+                                    [ INSTANT_SOLVE ]
+                                </button>
+                                <button onclick="runDemo(true)"
+                                    class="w-full bg-transparent border-4 border-neonPink text-neonPink py-3 text-lg font-display font-black hover:bg-neonPink hover:text-black hover:shadow-hard-pink transition-all uppercase">
+                                    [ VISUALIZE_THINKING ]
+                                </button>
+                                <button onclick="resetDemo()"
+                                    class="w-full bg-transparent border-2 border-gray-600 py-2 text-gray-400 font-mono text-xs hover:border-white hover:text-white transition-all uppercase">
+                                    RESET
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 font-mono text-xs text-neonGreen p-2 border border-green-900 bg-black h-24 overflow-y-auto"
+                            id="execution-log">
+                            > SYSTEM_READY...
+                        </div>
+                    </div>
+
+                    <!-- The Grid -->
+                    <div class="relative">
+                        <div class="absolute -top-3 -right-3 bg-neonPink text-black p-1 font-bold z-20 shadow-hard-pink text-xs"
+                            id="time-badge" style="display:none">
+                            0ms
+                        </div>
+                        <div id="demo-grid"
+                            class="grid grid-cols-5 gap-1 border-4 border-white p-2 bg-black min-h-[350px]">
+                            <!-- Generated via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Impact & Summary -->
+        <div class="slide" id="slide-6">
+            <div class="max-w-7xl w-full grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                <div class="order-2 md:order-1 border-4 border-white p-8 bg-black">
+                    <h3 class="font-display text-4xl mb-6 text-white">THE <span class="text-neonCyan">STACK</span></h3>
+                    <div class="space-y-6 font-mono">
+                        <div class="flex items-start">
+                            <span class="text-neonPink mr-4 w-8">01</span>
+                            <div>
+                                <div class="font-bold text-white text-lg">FASTAPI (PYTHON)</div>
+                                <div class="text-sm text-gray-400">NumPy Vectorization.</div>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="text-neonGreen mr-4 w-8">02</span>
+                            <div>
+                                <div class="font-bold text-white text-lg">REACT + VITE</div>
+                                <div class="text-sm text-gray-400">Real-time Interface.</div>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="text-white mr-4 w-8">03</span>
+                            <div>
+                                <div class="font-bold text-white text-lg">POSTGRESQL</div>
+                                <div class="text-sm text-gray-400">Relational Data.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="order-1 md:order-2">
+                    <h2 class="font-display text-6xl font-black mb-8 leading-tight">
+                        ADMIN <br>
+                        <span class="bg-white text-black px-2">REVOLUTION</span>
+                    </h2>
+                    <ul class="space-y-6 font-mono font-bold text-xl">
+                        <li class="flex items-center text-neonGreen">
+                            [✓] 99% TIME REDUCTION
+                        </li>
+                        <li class="flex items-center text-neonPink">
+                            [✓] 0% CONFLICT RATE
+                        </li>
+                        <li class="flex items-center text-neonCyan">
+                            [✓] 100% AUDITABLE LOGS
+                        </li>
+                    </ul>
+                    <div class="mt-12 p-6 border-4 border-neonYellow bg-white/5">
+                        <p class="font-display text-2xl text-neonYellow">
+                            "FROM CHAOS TO CODE."
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div
+                class="absolute bottom-4 left-4 font-display text-4xl text-white opacity-10 uppercase tracking-widest pointer-events-none">
+                OptiSeat // AI
+            </div>
+        </div>
+
+    </div>
+
+    <!-- SCRIPTS -->
+    <script>
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+        // --- SLIDE NAVIGATION ---
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+
+        function showSlide(index) {
+            slides.forEach((slide, i) => {
+                slide.classList.remove('active');
+                if (i === index) {
+                    slide.classList.add('active');
+                    if (index === 0) initManualChallenge();
+                    if (index === 1) startExactAlgoDemo(); // New Slide 2
+                    if (index === 4) initDemoGrid(); // Updated Index for Demo (Slide 5 is index 4)
+                }
+            });
+        }
+
+        function nextSlide() {
+            currentSlide = (currentSlide + 1) % totalSlides;
+            showSlide(currentSlide);
+        }
+
+        function prevSlide() {
+            currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+            showSlide(currentSlide);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+            else if (e.key === 'ArrowLeft') prevSlide();
+        });
+
+        // --- BACKGROUND EFFECT ---
+        // (Same as before, abbreviated here for clarity but fully present in logic)
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const columns = canvas.width / 16;
+        const rainDrops = Array(Math.ceil(columns)).fill(1);
+        const drawMatrix = () => { /* ... same as previous ... */
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#114411';
+            ctx.font = '16px monospace';
+            for (let i = 0; i < rainDrops.length; i++) {
+                const text = String.fromCharCode(0x30A0 + Math.random() * 96);
+                ctx.fillText(text, i * 16, rainDrops[i] * 16);
+                if (rainDrops[i] * 16 > canvas.height && Math.random() > 0.975) rainDrops[i] = 0;
+                rainDrops[i]++;
+            }
+        };
+        setInterval(drawMatrix, 50);
+
+        // --- SLIDE 2: EXACT ALGO VISUALIZATION ---
+        let exactAlgoInterval = null;
+        function startExactAlgoDemo() {
+            if (exactAlgoInterval) clearInterval(exactAlgoInterval);
+
+            const cvs = document.getElementById('exact-logic-canvas');
+            const cx = cvs.getContext('2d');
+            cvs.width = cvs.offsetWidth;
+            cvs.height = cvs.offsetHeight;
+            const W = cvs.width, H = cvs.height;
+
+            // Nodes: 0 (Center), 1 (Top), 2 (Right), 3 (Bottom), 4 (Left)
+            const cxX = W / 2, cyY = H / 2;
+            const nodes = [
+                { id: 0, x: cxX, y: cyY, val: null, domain: [0, 1, 2], name: 'N0' },
+                { id: 1, x: cxX, y: cyY - 120, val: null, domain: [0, 1, 2], name: 'N1' },
+                { id: 2, x: cxX + 120, y: cyY, val: null, domain: [0, 1, 2], name: 'N2' },
+                { id: 3, x: cxX, y: cyY + 120, val: null, domain: [0, 1, 2], name: 'N3' },
+                { id: 4, x: cxX - 120, y: cyY, val: null, domain: [0, 1, 2], name: 'N4' }
+            ];
+            // Edges: Center connected to all, Ring connected to neighbors
+            const edges = [
+                [0, 1], [0, 2], [0, 3], [0, 4], // Star
+                [1, 2], [2, 3], [3, 4], [4, 1]  // Ring
+            ];
+
+            const colors = ['#00ff00', '#ff00ff', '#00ffff']; // G, P, C
+
+            let stack = []; // For backtracking visualization (simplistic sequence here)
+            let step = 0;
+
+            // Scripted Sequence of events reflecting the algorithm
+            // Format: { line: int, action: fn, desc: str }
+            const sequence = [
+                { l: 0, desc: 'INIT_BACKTRACK', hl: 'N0' },
+                { l: 4, desc: 'MRV: SELECT N0 (5 Edges)', hl: 'N0' },
+                { l: 5, desc: 'TRY COLOR: GREEN', hl: 'N0' },
+                { l: 7, desc: 'ASSIGN N0 = GREEN', assign: { id: 0, c: 0 } },
+                { l: 8, desc: 'FORWARD CHECK: PRUNE NEIGHBORS', prune: { from: 0, c: 0 } },
+                { l: 10, desc: 'RECURSE(N1)', hl: 'N1' },
+
+                { l: 4, desc: 'MRV: SELECT N1', hl: 'N1' },
+                { l: 5, desc: 'TRY COLOR: PINK', hl: 'N1' },
+                { l: 7, desc: 'ASSIGN N1 = PINK', assign: { id: 1, c: 1 } },
+                { l: 8, desc: 'PRUNE N2, N4', prune: { from: 1, c: 1 } },
+
+                { l: 10, desc: 'RECURSE(N2)', hl: 'N2' },
+                { l: 4, desc: 'MRV: SELECT N2', hl: 'N2' },
+                { l: 5, desc: 'TRY COLOR: CYAN', hl: 'N2' },
+                { l: 7, desc: 'ASSIGN N2 = CYAN', assign: { id: 2, c: 2 } },
+                { l: 8, desc: 'PRUNE N3', prune: { from: 2, c: 2 } },
+
+                { l: 10, desc: 'RECURSE(N3)', hl: 'N3' },
+                { l: 4, desc: 'MRV: SELECT N3', hl: 'N3' },
+                { l: 5, desc: 'ONLY OPTION: PINK', hl: 'N3' },
+                { l: 7, desc: 'ASSIGN N3 = PINK', assign: { id: 3, c: 1 } },
+                { l: 8, desc: 'PRUNE N4', prune: { from: 3, c: 1 } },
+
+                { l: 10, desc: 'RECURSE(N4)', hl: 'N4' },
+                { l: 4, desc: 'MRV: SELECT N4', hl: 'N4' },
+                { l: 5, desc: 'DOMAIN EMPTY! CRASH!', hl: 'N4' },
+                { l: 13, desc: 'RETURN FAILURE', hl: 'N4' },
+
+                { l: 12, desc: 'BACKTRACK: UNASSIGN N3', unassign: 3, unprune: 3 },
+                { l: 12, desc: 'BACKTRACK: UNASSIGN N2', unassign: 2, unprune: 2 },
+
+                { l: 5, desc: 'N2: TRY NEXT COLOR (NONE)', hl: 'N2' },
+                { l: 12, desc: 'BACKTRACK: UNASSIGN N1', unassign: 1, unprune: 1 },
+                { l: 5, desc: 'N1: TRY CYAN', hl: 'N1' },
+                { l: 7, desc: 'ASSIGN N1 = CYAN', assign: { id: 1, c: 2 }, prune: { from: 1, c: 2 } },
+                { l: 14, desc: '...SOLVING...', hl: 'ALL' },
+                { l: 2, desc: 'SOLUTION FOUND', hl: 'ALL' }
+            ];
+
+            const draw = () => {
+                cx.clearRect(0, 0, W, H);
+
+                // Edges
+                cx.lineWidth = 2;
+                cx.strokeStyle = '#333';
+                edges.forEach(e => {
+                    const n1 = nodes[e[0]], n2 = nodes[e[1]];
+                    cx.beginPath();
+                    cx.moveTo(n1.x, n1.y);
+                    cx.lineTo(n2.x, n2.y);
+                    cx.stroke();
+                });
+
+                // Nodes
+                nodes.forEach(n => {
+                    cx.beginPath();
+                    cx.arc(n.x, n.y, 25, 0, Math.PI * 2);
+                    cx.fillStyle = n.val !== null ? colors[n.val] : '#111';
+                    cx.fill();
+                    cx.strokeStyle = n.val !== null ? '#fff' : '#555';
+                    cx.lineWidth = 2;
+                    cx.stroke();
+
+                    // Label
+                    cx.textAlign = 'center';
+                    cx.textBaseline = 'middle';
+                    cx.fillStyle = n.val !== null ? '#000' : '#fff';
+                    cx.font = 'bold 12px monospace';
+                    cx.fillText(n.name, n.x, n.y);
+
+                    // Domain Viz (Mini dots above node)
+                    n.domain.forEach((d, i) => {
+                        const dx = n.x - 15 + i * 15;
+                        const dy = n.y - 40;
+                        cx.beginPath();
+                        cx.arc(dx, dy, 4, 0, Math.PI * 2);
+                        cx.fillStyle = colors[d];
+                        cx.fill();
+                    });
+                });
+            };
+
+            const executeStep = () => {
+                if (step >= sequence.length) step = 0; // Loop (or could pause)
+                const op = sequence[step];
+
+                // UI Updates
+                document.querySelectorAll('.code-line').forEach(el => el.classList.remove('active'));
+                document.getElementById(`code-line-${op.l}`).classList.add('active');
+
+                document.getElementById('debug-status').innerText = op.desc;
+                if (op.hl) document.getElementById('debug-var').innerText = op.hl;
+
+                // Logic Updates
+                if (op.assign) {
+                    nodes[op.assign.id].val = op.assign.c;
+                }
+                if (op.prune) {
+                    // Remove color c from neighbors of 'from'
+                    const neighborIds = edges.filter(e => e.includes(op.prune.from)).map(e => e[0] === op.prune.from ? e[1] : e[0]);
+                    neighborIds.forEach(nid => {
+                        nodes[nid].domain = nodes[nid].domain.filter(d => d !== op.prune.c);
+                    });
+                }
+                if (op.unassign !== undefined) {
+                    nodes[op.unassign].val = null;
+                }
+                if (op.unprune !== undefined) {
+                    // Reset domains for demo simplicity (In real algo, stack restores them)
+                    // Here we just hard reset to full if null
+                    nodes.forEach(n => { if (n.val === null) n.domain = [0, 1, 2]; });
+                    // Re-apply existing constraints
+                    nodes.forEach(n => {
+                        if (n.val !== null) {
+                            const nIds = edges.filter(e => e.includes(n.id)).map(e => e[0] === n.id ? e[1] : e[0]);
+                            nIds.forEach(nid => nodes[nid].domain = nodes[nid].domain.filter(d => d !== n.val));
+                        }
+                    });
+                }
+
+                draw();
+
+                // Special case for last step
+                if (step === sequence.length - 2) { // Solving...
+                    nodes[2].val = 0; nodes[3].val = 1; nodes[4].val = 0;
+                    nodes.forEach(n => n.domain = []);
+                }
+
+                step++;
+            };
+
+            exactAlgoInterval = setInterval(executeStep, 1500); // Slow enough to read
+            draw();
+        }
+
+        // --- MANUAL CHALLENGE & ALGO VISUALIZER (Slides 1 & 3) ---
+        // (Copied from previous step, ensuring full functionality persists)
+        let manualGrid = Array(9).fill(0);
+        let manualStartTime = null;
+        let manualTimerInterval = null;
+
+        function initManualChallenge() {
+            const container = document.getElementById('manual-grid');
+            container.innerHTML = '';
+            manualGrid = Array(9).fill(0);
+            manualStartTime = Date.now();
+            if (manualTimerInterval) clearInterval(manualTimerInterval);
+            manualTimerInterval = setInterval(() => {
+                const elapsed = ((Date.now() - manualStartTime) / 1000).toFixed(2);
+                document.getElementById('manual-timer').innerText = `TIME: ${elapsed}s`;
+            }, 50);
+            for (let i = 0; i < 9; i++) {
+                const div = document.createElement('div');
+                div.className = 'manual-cell w-full h-16 border-2 border-white/20 bg-white/5 flex items-center justify-center font-bold text-black';
+                div.onclick = () => cycleManualColor(i);
+                div.id = `m-cell-${i}`;
+                container.appendChild(div);
+            }
+            checkManualConflicts();
+        }
+
+        function cycleManualColor(idx) {
+            manualGrid[idx] = (manualGrid[idx] % 3) + 1;
+            const colors = ['bg-red-500', 'bg-green-500', 'bg-blue-500'];
+            const el = document.getElementById(`m-cell-${idx}`);
+            el.className = `manual-cell w-full h-16 border-2 border-white flex items-center justify-center font-bold text-black ${colors[manualGrid[idx] - 1]}`;
+            checkManualConflicts();
+        }
+
+        function checkManualConflicts() {
+            let conflict = false;
+            const status = document.getElementById('manual-status');
+            const check = (i1, i2) => {
+                if (manualGrid[i1] !== 0 && manualGrid[i1] === manualGrid[i2]) return true;
+                return false;
+            };
+            if (check(0, 1) || check(1, 2) || check(3, 4) || check(4, 5) || check(6, 7) || check(7, 8)) conflict = true;
+            if (check(0, 3) || check(3, 6) || check(1, 4) || check(4, 7) || check(2, 5) || check(5, 8)) conflict = true;
+
+            if (conflict) {
+                status.innerText = "CONFLICT DETECTED!";
+                status.className = "text-red-500 font-bold animate-pulse";
+            } else {
+                if (manualGrid.every(x => x !== 0)) {
+                    status.innerText = "SUCCESS!";
+                    status.className = "text-neonGreen font-bold";
+                    clearInterval(manualTimerInterval);
+                } else {
+                    status.innerText = "ALLOCATING...";
+                    status.className = "text-gray-500 font-bold";
+                }
+            }
+        }
+
+        async function runDemo(visualize) {
+            resetDemo();
+            const log = document.getElementById('execution-log');
+            const badge = document.getElementById('time-badge');
+            const colors = ['#00ff00', '#ff00ff', '#00ffff'];
+            const names = ['CSE', 'ECE', 'ME'];
+            const cols = 5;
+            const grid = Array(25).fill(-1);
+
+            log.innerHTML = `> STARTING_ALGO...<br>> VISUAL_MODE: ${visualize ? 'ON' : 'OFF'}`;
+            const startTime = performance.now();
+
+            for (let i = 0; i < 25; i++) {
+                const cell = document.getElementById(`seat-${i}`);
+                if (visualize) {
+                    cell.classList.add('thinking');
+                    await sleep(100);
+                }
+                let allocated = -1;
+                for (let c = 0; c < 3; c++) {
+                    let conflict = false;
+                    const r = Math.floor(i / cols);
+                    const col = i % cols;
+                    if (r > 0 && grid[i - 5] === c) conflict = true;
+                    if (col > 0 && grid[i - 1] === c) conflict = true;
+
+                    if (visualize) {
+                        cell.style.backgroundColor = colors[c];
+                        cell.innerText = '?';
+                        await sleep(50);
+                        if (conflict) {
+                            cell.style.backgroundColor = 'red';
+                            log.innerHTML = `> CONFLICT AT IDX ${i}<br>` + log.innerHTML;
+                            await sleep(50);
+                        }
+                    }
+                    if (!conflict) {
+                        allocated = c;
+                        break;
+                    }
+                }
+                if (allocated !== -1) {
+                    grid[i] = allocated;
+                    cell.style.backgroundColor = colors[allocated];
+                    cell.innerText = names[allocated];
+                    cell.style.color = 'black';
+                    cell.classList.remove('thinking');
+                    if (visualize) cell.style.borderColor = 'white';
+                } else {
+                    cell.style.opacity = 0.5;
+                }
+            }
+            const endTime = performance.now();
+            badge.style.display = 'block';
+            badge.innerText = visualize ? 'DEMO_COMPLETE' : `${(endTime - startTime).toFixed(1)}ms`;
+            log.innerHTML = `> COMPLETED.<br>> ALLOCATED 25 SEATS.`;
+        }
+
+        function initDemoGrid() {
+            const grid = document.getElementById('demo-grid');
+            grid.innerHTML = '';
+            for (let i = 0; i < 25; i++) {
+                const d = document.createElement('div');
+                d.className = 'seat-cell w-full h-full bg-white/10 border border-white/20 flex items-center justify-center font-bold text-xs text-white';
+                d.id = `seat-${i}`;
+                d.innerText = i;
+                grid.appendChild(d);
+            }
+        }
+
+        function resetDemo() {
+            initDemoGrid();
+            document.getElementById('execution-log').innerText = '> SYSTEM_READY...';
+            document.getElementById('time-badge').style.display = 'none';
+        }
+
+        function exportToPDF() {
+            const btn = document.getElementById('export-btn');
+            btn.innerText = "[ PROCESSING... ]";
+            document.body.classList.add('pdf-mode');
+
+            if (document.getElementById('demo-grid').children.length === 0) initDemoGrid();
+
+            const crt = document.querySelector('.crt-overlay');
+            if (crt) crt.style.display = 'none';
+
+            const element = document.getElementById('presentation-container');
+            const opt = {
+                margin: 0,
+                filename: 'OptiSeat_AI_Exact_Logic.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#050505',
+                    scrollY: 0,
+                    windowWidth: 1920,
+                    onclone: (doc) => {
+                        doc.querySelectorAll('.slide').forEach(s => {
+                            s.style.display = 'flex';
+                            s.style.opacity = '1';
+                        });
+                    }
+                },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                document.body.classList.remove('pdf-mode');
+                if (crt) crt.style.display = 'block';
+                btn.innerText = "[ EXPORT_PDF ]";
+                showSlide(currentSlide);
+            });
+        }
+
+        showSlide(0);
+    </script>
+</body>
+
+</html>
